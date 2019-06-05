@@ -1,4 +1,4 @@
-package Server.Server;
+package Server.api;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;

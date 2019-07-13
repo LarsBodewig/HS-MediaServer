@@ -24,46 +24,50 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 import org.jsoup.HttpStatusException;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.google.gson.Gson;
+import Server.api.Api;
 
-@Path("twitter" + "/{user}/" + "posts")
+@Path(Twitter.BASE_PATH + "/{" + Posts.USER_PARAM + "}/" + Twitter.POSTS_PATH)
 public class Posts {
 
-	private static final String TWITTER = "https://twitter.com";
+	static final String USER_PARAM = "user";
+	static final String FROM_PARAM = "from";
+	static final String TO_PARAM = "to";
+	static final String REPLIES_PARAM = "replies";
+	static final String REPLIES_PARAM_DEFAULT = "true";
+
+	private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("MMM d", Locale.US);
+	private static final DateTimeFormatter FULL_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMM yy", Locale.US);
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public String get(@PathParam("user") String user, @QueryParam("from") String from, @QueryParam("to") String to,
-			@QueryParam("replies") @DefaultValue("true") boolean replies) throws IOException, ParseException {
+	public String get(@PathParam(USER_PARAM) String user, @QueryParam(FROM_PARAM) String from,
+			@QueryParam(TO_PARAM) String to,
+			@QueryParam(REPLIES_PARAM) @DefaultValue(REPLIES_PARAM_DEFAULT) boolean replies)
+			throws IOException, ParseException {
 		List<Tweet> results = new ArrayList<>();
-		String url = TWITTER + "/" + user;
+		String url = Twitter.BASE_URL + "/" + user;
 		if (from != null && from.matches("^[-,0-9]+$")) {
 			url += "?max_id=" + from;
 		}
-		if (to != null && to.matches("^[-,0-9]+$")) {
-			results = getTweets(results, url, to, replies);
-		} else {
-			results = getTweets(results, url, null, replies);
+		if (to != null && !to.matches("^[-,0-9]+$")) {
+			to = null;
 		}
-		return new Gson().toJson(results);
+		results = getTweets(results, url, to, replies);
+		return Twitter.toJson(results);
 	}
 
 	private List<Tweet> getTweets(List<Tweet> results, String from, String to, boolean replies)
 			throws IOException, ParseException {
 		Document doc = null;
 		try {
-			doc = Jsoup.connect(from).userAgent(
-					"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.120 Safari/535.2")
-					.get();
+			doc = Twitter.getDocument(from);
 		} catch (HttpStatusException hse) {
 			if (hse.getStatusCode() == 429) {
-				System.out.println("Catched Exception: Exceeded twitter rate limit - on cooldown."
-						+ System.lineSeparator() + "\t" + hse);
+				Api.log("Catched Exception: Exceeded twitter rate limit - on cooldown.", "\t" + hse);
 				return results;
 			} else {
 				throw hse;
@@ -74,39 +78,11 @@ public class Posts {
 			Tweet result = new Tweet();
 			result.id = tweet.getElementsByClass("tweet-text").attr("data-id");
 			result.author = tweet.getElementsByClass("username").first().ownText();
-			result.source = TWITTER + tweet.attr("href");
+			result.source = Twitter.BASE_URL + tweet.attr("href");
 			Element post = tweet.getElementsByClass("tweet-text").first();
 			result.post = post.child(0).html();
-			String dateString = tweet.getElementsByClass("timestamp").first().child(0).ownText();
-			LocalDateTime date = null;
-			if (dateString.matches("^[1-5]?[0-9](m|h|s)$")) {
-				TemporalUnit unit = null;
-				switch (dateString.charAt(dateString.length() - 1)) {
-				case 'h':
-					unit = ChronoUnit.HOURS;
-					break;
-				case 'm':
-					unit = ChronoUnit.MINUTES;
-					break;
-				case 's':
-					unit = ChronoUnit.SECONDS;
-					break;
-				}
-				String amountString = dateString.substring(0, dateString.length() - 1);
-				TemporalAmount amount = Duration.of(Long.parseLong(amountString), unit);
-				date = LocalDateTime.now().minus(amount);
-			} else if (dateString.matches("^[A-Z][a-z]{2} [1-3]?[0-9]$")) {
-				MonthDay md = MonthDay.parse(dateString, DateTimeFormatter.ofPattern("MMM d", Locale.US));
-				if (md.atYear(LocalDate.now().getYear()).isBefore(LocalDate.now())) {
-					date = md.atYear(LocalDate.now().getYear()).atStartOfDay();
-				} else {
-					date = md.atYear(LocalDate.now().minus(1L, ChronoUnit.YEARS).getYear()).atStartOfDay();
-				}
-			} else if (dateString.matches("^[1-3]?[0-9] [A-Z][a-z]{2} [0-9]{2}$")) {
-				date = LocalDate.parse(dateString, DateTimeFormatter.ofPattern("d MMM yy", Locale.US)).atStartOfDay();
-			}
-			result.timestamp = date.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-
+			String timestamp = tweet.getElementsByClass("timestamp").first().child(0).ownText();
+			result.timestamp = parseTime(timestamp);
 			Element reply = tweet.getElementsByClass("tweet-reply-context").first();
 			if (reply != null) {
 				result.reply = reply.getElementsByTag("a").first().text();
@@ -125,25 +101,42 @@ public class Posts {
 				return results;
 			}
 		}
-
 		Element moreResults = doc.getElementsByClass("w-button-more").first();
 		if (moreResults != null && to != null) {
-			return getTweets(results, doc.getElementsByClass("w-button-more").first().child(0).attr("abs:href"), to,
-					replies);
+			return getTweets(results, moreResults.child(0).attr("abs:href"), to, replies);
 		} else {
 			return results;
 		}
 	}
 
-	static class Tweet {
-		public String id;
-		public String author;
-		public String source;
-		public String post;
-		public long timestamp;
-		public String reply;
-		public boolean retweet;
-		public String avatar;
-		public String media;
+	private long parseTime(String timestamp) {
+		LocalDateTime date = null;
+		if (timestamp.matches("^[1-5]?[0-9](m|h|s)$")) {
+			TemporalUnit unit = null;
+			switch (timestamp.charAt(timestamp.length() - 1)) {
+			case 'h':
+				unit = ChronoUnit.HOURS;
+				break;
+			case 'm':
+				unit = ChronoUnit.MINUTES;
+				break;
+			case 's':
+				unit = ChronoUnit.SECONDS;
+				break;
+			}
+			String amountString = timestamp.substring(0, timestamp.length() - 1);
+			TemporalAmount amount = Duration.of(Long.parseLong(amountString), unit);
+			date = LocalDateTime.now().minus(amount);
+		} else if (timestamp.matches("^[A-Z][a-z]{2} [1-3]?[0-9]$")) {
+			MonthDay md = MonthDay.parse(timestamp, MONTH_DAY_FORMATTER);
+			if (md.atYear(LocalDate.now().getYear()).isBefore(LocalDate.now())) {
+				date = md.atYear(LocalDate.now().getYear()).atStartOfDay();
+			} else {
+				date = md.atYear(LocalDate.now().minus(1L, ChronoUnit.YEARS).getYear()).atStartOfDay();
+			}
+		} else if (timestamp.matches("^[1-3]?[0-9] [A-Z][a-z]{2} [0-9]{2}$")) {
+			date = LocalDate.parse(timestamp, FULL_DATE_FORMATTER).atStartOfDay();
+		}
+		return date.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}
 }

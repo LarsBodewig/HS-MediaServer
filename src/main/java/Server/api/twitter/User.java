@@ -8,31 +8,27 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 import com.gargoylesoftware.css.parser.javacc.ParseException;
-import com.google.gson.Gson;
 
-@Path("twitter" + "/{user}/" + "user")
+@Path(Twitter.BASE_PATH + "/{" + User.USER_PARAM + "}/" + Twitter.USER_PATH)
 public class User {
 
-	private static final String TWITTER = "https://twitter.com";
+	static final String USER_PARAM = "user";
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public String get(@PathParam("user") String user) throws IOException, ParseException {
-		String url = TWITTER + "/" + user;
-		Document doc = Jsoup.connect(url).userAgent(
-				"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.120 Safari/535.2")
-				.get();
+	public String get(@PathParam(USER_PARAM) String user) throws IOException, ParseException {
+		String url = Twitter.BASE_URL + "/" + user;
+		Document doc = Twitter.getDocument(url);
 		UserInfo userInfo = new UserInfo();
 		Element profile = doc.getElementsByClass("profile").first();
 		Element details = profile.getElementsByClass("profile-details").first();
 		userInfo.avatar = details.getElementsByClass("avatar").first().child(0).attr("src");
 		userInfo.fullname = details.getElementsByClass("fullname").first().ownText();
-		userInfo.username = details.getElementsByClass("username").first().text();
+		userInfo.username = String.join("", details.getElementsByClass("username").first().children().eachText());
 		String locationString = details.getElementsByClass("location").first().ownText();
 		if (!locationString.equals("")) {
 			userInfo.location = locationString;
@@ -52,18 +48,6 @@ public class User {
 		userInfo.following = Long.parseLong(followingStat.replace(",", ""));
 		String followersStat = stats.getElementsByClass("statnum").eq(2).first().ownText();
 		userInfo.followers = Long.parseLong(followersStat.replace(",", ""));
-		return new Gson().toJson(userInfo);
-	}
-
-	static class UserInfo {
-		public String avatar;
-		public String fullname;
-		public String username;
-		public String location;
-		public String bio;
-		public String url;
-		public long tweets;
-		public long following;
-		public long followers;
+		return Twitter.toJson(userInfo);
 	}
 }

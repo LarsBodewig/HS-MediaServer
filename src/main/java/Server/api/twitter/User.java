@@ -2,6 +2,7 @@ package Server.api.twitter;
 
 import java.io.IOException;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -19,6 +20,7 @@ public class User {
 	static final String USER_PARAM = "user";
 
 	@GET
+	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public String get(@PathParam(USER_PARAM) String user) throws IOException, ParseException {
 		String url = Twitter.BASE_URL + "/" + user;

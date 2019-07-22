@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -22,6 +23,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
@@ -29,6 +31,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import Server.api.Api;
+import Server.api.account.Account;
 
 @Path(Twitter.BASE_PATH + "/{" + Posts.USER_PARAM + "}/" + Twitter.POSTS_PATH)
 public class Posts {
@@ -43,11 +46,16 @@ public class Posts {
 	private static final DateTimeFormatter FULL_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMM yy", Locale.US);
 
 	@GET
+	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
-	public String get(@PathParam(USER_PARAM) String user, @QueryParam(FROM_PARAM) String from,
+	public Response get(@PathParam(USER_PARAM) String user, @QueryParam(FROM_PARAM) String from,
 			@QueryParam(TO_PARAM) String to,
-			@QueryParam(REPLIES_PARAM) @DefaultValue(REPLIES_PARAM_DEFAULT) boolean replies)
-			throws IOException, ParseException {
+			@QueryParam(REPLIES_PARAM) @DefaultValue(REPLIES_PARAM_DEFAULT) boolean replies,
+			// @FormParam("auth_token")
+			@QueryParam("auth_token") String token) throws IOException, ParseException {
+		if (!Account.checkLoginToken(token)) {
+			return Response.status(Response.Status.FORBIDDEN).header("Access-Control-Allow-Origin", "*").build();
+		}
 		List<Tweet> results = new ArrayList<>();
 		String url = Twitter.BASE_URL + "/" + user;
 		if (from != null && from.matches("^[-,0-9]+$")) {
@@ -56,23 +64,26 @@ public class Posts {
 		if (to != null && !to.matches("^[-,0-9]+$")) {
 			to = null;
 		}
-		results = getTweets(results, url, to, replies);
-		return Twitter.toJson(results);
-	}
-
-	private List<Tweet> getTweets(List<Tweet> results, String from, String to, boolean replies)
-			throws IOException, ParseException {
-		Document doc = null;
 		try {
-			doc = Twitter.getDocument(from);
-		} catch (HttpStatusException hse) {
-			if (hse.getStatusCode() == 429) {
-				Api.log("Catched Exception: Exceeded twitter rate limit - on cooldown.", "\t" + hse);
-				return results;
+			results = getTweets(results, url, to, replies);
+			return Response.ok(Twitter.toJson(results)).header("Access-Control-Allow-Origin", "*").build();
+		} catch (IOException io) {
+			if (io instanceof HttpStatusException && ((HttpStatusException) io).getStatusCode() == 429) {
+				Api.log("Catched Exception: Exceeded twitter rate limit - on cooldown.", "\t" + io);
+			}
+			if (results.isEmpty()) {
+				return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
+						.build();
 			} else {
-				throw hse;
+				return Response.status(Response.Status.PARTIAL_CONTENT).entity(Twitter.toJson(results))
+						.header("Access-Control-Allow-Origin", "*").build();
 			}
 		}
+	}
+
+	private List<Tweet> getTweets(List<Tweet> results, String from, String to, boolean replies) throws IOException {
+		Document doc = null;
+		doc = Twitter.getDocument(from);
 		Elements tweets = doc.getElementsByClass("tweet");
 		for (Element tweet : tweets) {
 			Tweet result = new Tweet();

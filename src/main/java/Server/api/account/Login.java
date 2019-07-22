@@ -17,13 +17,14 @@ public class Login {
 
 	// @POST
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("password")
 			@QueryParam("password") String password) {
 		if (!Account.hasDBC()) {
-			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*").build();
+			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
+					.build();
 		}
 		if (Account.userExists(email)) {
 			Account.clearUserTokens(email);
@@ -34,6 +35,10 @@ public class Login {
 			return Response.status(Response.Status.UNAUTHORIZED).header("Access-Control-Allow-Origin", "*").build();
 		}
 		String token = createLoginToken(email);
+		if (token == null) {
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
+					.build();
+		}
 		return Response.ok(new Gson().toJson(wrap("token", token))).header("Access-Control-Allow-Origin", "*").build();
 	}
 

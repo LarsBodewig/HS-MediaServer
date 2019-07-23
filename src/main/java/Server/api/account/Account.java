@@ -2,10 +2,6 @@ package Server.api.account;
 
 public abstract class Account {
 
-	public static boolean hasDBC() {
-		return true;
-	}
-
 	public static boolean checkLoginToken(String token) {
 		return token != null;
 	}

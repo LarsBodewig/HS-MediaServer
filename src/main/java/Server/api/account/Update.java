@@ -10,6 +10,8 @@ import javax.ws.rs.core.Response;
 
 import com.google.gson.Gson;
 
+import Server.db.Database;
+
 @Path("/account/update")
 public class Update {
 
@@ -18,7 +20,7 @@ public class Update {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response get( // @FormParam("auth_token")
 			@QueryParam("auth_token") String token) {
-		if (!Account.hasDBC()) {
+		if (!Database.hasConnection()) {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}
@@ -40,7 +42,7 @@ public class Update {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post(AccountObject account, // @FormParam("auth_token")
 			@QueryParam("auth_token") String token) {
-		if (!Account.hasDBC()) {
+		if (!Database.hasConnection()) {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}

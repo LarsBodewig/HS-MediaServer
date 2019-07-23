@@ -8,6 +8,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import Server.db.Database;
+
 @Path("/account/terminate")
 public class Terminate {
 
@@ -18,7 +20,7 @@ public class Terminate {
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("code")
 			@QueryParam("code") String code) {
-		if (!Account.hasDBC()) {
+		if (!Database.hasConnection()) {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}

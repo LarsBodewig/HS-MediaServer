@@ -2,17 +2,18 @@ package Server.api;
 
 import java.io.PrintStream;
 
+import Server.Server;
+
 public abstract class Api {
 
-	private static final PrintStream logStream = System.out;
-
 	public static void log(String... lines) {
+		PrintStream logStream = Server.getLogStream();
 		for (String line : lines) {
 			logStream.println(line);
 		}
 	}
 
 	public static void log(Exception exception) {
-		exception.printStackTrace(logStream);
+		exception.printStackTrace(Server.getLogStream());
 	}
 }

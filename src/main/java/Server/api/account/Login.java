@@ -12,6 +12,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import Server.db.Database;
+
 @Path("/account/login")
 public class Login {
 
@@ -22,7 +24,7 @@ public class Login {
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("password")
 			@QueryParam("password") String password) {
-		if (!Account.hasDBC()) {
+		if (!Database.hasConnection()) {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}

@@ -9,13 +9,15 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import Server.db.Database;
+import Server.db.Hash;
+import Server.mail.Mail;
 
 @Path("/account/register")
 public class Register {
 
 	// @POST
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("password")
@@ -24,8 +26,9 @@ public class Register {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}
-		if (Account.userExists(email)) {
-			Account.clearUserTokens(email);
+		AccountObject acc = Account.getAccount(email);
+		if (acc != null) {
+			Account.clearUserTokens(acc.id);
 			return Response.status(Response.Status.CONFLICT).header("Access-Control-Allow-Origin", "*").build();
 		}
 		if (!validEmail(email)) {
@@ -41,21 +44,22 @@ public class Register {
 		return Response.ok().header("Access-Control-Allow-Origin", "*").build();
 	}
 
-	private static String createVerifyToken(String email) {
-		return email;
-	}
-
 	private static boolean createUser(String email, String password) {
-		// create
-		String token = createVerifyToken(email);
+		String token = Hash.randomToken();
+		String hash = Hash.createHash(password);
+		Database.insertAccount(email, hash, false);
+		AccountObject acc = Database.getAccount("email", email);
+		Database.insertToken("verify_token", acc.id, token, "DATE_ADD(NOW(), INTERVAL "
+				+ Account.VERIFY_TOKEN_TIMEOUT_AMOUNT + " " + Account.VERIFY_TOKEN_TIMEOUT_INTERVAL + ")");
 		return sendVerifyEmail(email, token);
 	}
 
 	private static boolean sendVerifyEmail(String email, String token) {
-		return true;
+		String url = "http://localhost:8080/verify/" + token;
+		return Mail.sendVerifyMail(email, url);
 	}
 
 	private boolean validEmail(String email) {
-		return true;
+		return email.length() < 255; // apache commons for regex?
 	}
 }

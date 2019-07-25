@@ -16,7 +16,7 @@ import Server.db.Database;
 public class Update {
 
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response get( // @FormParam("auth_token")
 			@QueryParam("auth_token") String token) {
@@ -27,7 +27,8 @@ public class Update {
 		if (!Account.checkLoginToken(token)) {
 			return Response.status(Response.Status.FORBIDDEN).header("Access-Control-Allow-Origin", "*").build();
 		}
-		AccountObject account = getAccount(token);
+
+		AccountObject account = Database.getAccount("id", Database.getAccountId("login_token", token));
 		if (account == null) {
 			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
 					.build();
@@ -37,7 +38,8 @@ public class Update {
 
 	// @POST
 	@GET
-	//@Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_FORM_URLENCODED})
+	// @Consumes({MediaType.APPLICATION_JSON,
+	// MediaType.APPLICATION_FORM_URLENCODED})
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post(AccountObject account, // @FormParam("auth_token")
@@ -56,16 +58,8 @@ public class Update {
 		return Response.ok().header("Access-Control-Allow-Origin", "*").build();
 	}
 
-	static class AccountObject {
-
-	}
-
-	private static AccountObject getAccount(String token) {
-		return new AccountObject();
-	}
-
 	private static boolean updateAccount(String token, AccountObject account) {
-		// change
+		// Database.executeUpdate("UPDATE account SET WHERE id = " + account.id);
 		return true;
 	}
 }

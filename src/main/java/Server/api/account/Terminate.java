@@ -9,13 +9,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import Server.db.Database;
+import Server.mail.Mail;
 
 @Path("/account/terminate")
 public class Terminate {
 
 	// @POST
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("code")
@@ -24,12 +25,13 @@ public class Terminate {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}
-		if (Account.userExists(email)) {
-			Account.clearUserTokens(email);
+		AccountObject acc = Account.getAccount(email);
+		if (acc != null) {
+			Account.clearUserTokens(acc.id);
 		} else {
 			return Response.status(Response.Status.CONFLICT).header("Access-Control-Allow-Origin", "*").build();
 		}
-		if (!Account.securityCodeValid(email, code)) {
+		if (!Account.securityCodeValid(acc, code)) {
 			return Response.status(Response.Status.BAD_REQUEST).header("Access-Control-Allow-Origin", "*").build();
 		}
 		if (!terminate(email)) {
@@ -40,12 +42,11 @@ public class Terminate {
 	}
 
 	private static boolean terminate(String email) {
-		sendTerminateEmail(email);
-		// delete
-		return true;
+		Database.deleteAccount("email = '" + email + "'");
+		return sendTerminateEmail(email);
 	}
 
 	private static boolean sendTerminateEmail(String email) {
-		return true;
+		return Mail.sendTerminateMail(email);
 	}
 }

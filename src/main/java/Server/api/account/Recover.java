@@ -9,13 +9,15 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import Server.db.Database;
+import Server.db.Hash;
+import Server.mail.Mail;
 
 @Path("/account/recover")
 public class Recover {
 
 	// @POST
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response post( // @FormParam("email")
 			@QueryParam("email") String email, // @FormParam("code")
@@ -25,12 +27,13 @@ public class Recover {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}
-		if (Account.userExists(email)) {
-			Account.clearUserTokens(email);
+		AccountObject acc = Account.getAccount(email);
+		if (acc != null) {
+			Account.clearUserTokens(acc.id);
 		} else {
 			return Response.status(Response.Status.CONFLICT).header("Access-Control-Allow-Origin", "*").build();
 		}
-		if (!Account.securityCodeValid(email, code)) {
+		if (!Account.securityCodeValid(acc, code)) {
 			return Response.status(Response.Status.BAD_REQUEST).header("Access-Control-Allow-Origin", "*").build();
 		}
 		if (!Account.validPassword(password)) {
@@ -44,12 +47,13 @@ public class Recover {
 	}
 
 	private static boolean changePassword(String email, String password) {
-		// change
+		String hash = Hash.createHash(password);
+		Database.updateAccount("email", email, "pw_hash", hash);
 		String token = Account.createSecurityToken(email);
 		return sendRecoverEmail(email, token);
 	}
 
-	private static boolean sendRecoverEmail(String email, String token) {
-		return true;
+	private static boolean sendRecoverEmail(String email, String code) {
+		return Mail.sendRecoverMail(email, code);
 	}
 }

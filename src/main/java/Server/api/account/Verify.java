@@ -10,6 +10,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import Server.db.Database;
+import Server.mail.Mail;
 
 @Path("/account/verify")
 public class Verify {
@@ -35,12 +36,19 @@ public class Verify {
 	}
 
 	private static boolean verifyAccount(String token) {
-		// change db
-		return true;
+		AccountObject acc = Database.getAccount("id", Database.getAccountId("verify_token", token));
+		Database.updateAccount("id", acc.id, "verified", true);
+		Database.deleteToken("verify_token", "acc_id ='" + acc.id + "'");
+		Account.createSecurityToken(acc.email);
+		acc = Database.getAccount("id", acc.id);
+		return acc.verified && sendSecurityEmail(acc.email, acc.securityCode);
+	}
+
+	private static boolean sendSecurityEmail(String email, String code) {
+		return Mail.sendSecurityMail(email, code);
 	}
 
 	private static boolean checkVerifyToken(String token) {
-		// check existence and time
-		return true;
+		return Database.tokenExists("verify_token", token);
 	}
 }

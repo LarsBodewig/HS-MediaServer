@@ -13,6 +13,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import Server.db.Database;
+import Server.db.Hash;
 
 @Path("/account/login")
 public class Login {
@@ -28,15 +29,14 @@ public class Login {
 			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
 					.build();
 		}
-		if (Account.userExists(email)) {
-			Account.clearUserTokens(email);
-		} else {
+		AccountObject acc = Account.getAccount(email);
+		if (acc == null) {
 			return Response.status(Response.Status.UNAUTHORIZED).header("Access-Control-Allow-Origin", "*").build();
 		}
-		if (!loginValid(email, password)) {
+		if (!loginValid(password, acc.hash)) {
 			return Response.status(Response.Status.UNAUTHORIZED).header("Access-Control-Allow-Origin", "*").build();
 		}
-		String token = createLoginToken(email);
+		String token = createLoginToken(acc.id);
 		if (token == null) {
 			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
 					.build();
@@ -50,11 +50,17 @@ public class Login {
 		return res;
 	}
 
-	private static String createLoginToken(String email) {
-		return email + System.currentTimeMillis();
+	private static String createLoginToken(int id) {
+		String token = null;
+		do {
+			token = Hash.randomToken();
+		} while (Account.checkLoginToken(token));
+		Database.insertToken("login_token", id, token,
+				"DATE_ADD(NOW(), INTERVAL " + Account.LOGIN_TOKEN_TIMEOUT_AMOUNT + " HOUR)");
+		return token;
 	}
 
-	private static boolean loginValid(String email, String password) {
-		return password.equals("def");
+	private static boolean loginValid(String password, String hash) {
+		return Hash.checkPassword(password, hash);
 	}
 }

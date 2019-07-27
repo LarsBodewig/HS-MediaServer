@@ -1,10 +1,9 @@
 package Server.api.account;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -18,30 +17,24 @@ import Server.db.Hash;
 @Path("/account/login")
 public class Login {
 
-	// @POST
 	@GET
-	// @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response post( // @FormParam("email")
-			@QueryParam("email") String email, // @FormParam("password")
-			@QueryParam("password") String password) {
+	public Response post(@HeaderParam("email") String email, @HeaderParam("password") String password) {
 		if (!Database.hasConnection()) {
-			return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Access-Control-Allow-Origin", "*")
-					.build();
+			return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
 		}
 		AccountObject acc = Account.getAccount(email);
 		if (acc == null) {
-			return Response.status(Response.Status.UNAUTHORIZED).header("Access-Control-Allow-Origin", "*").build();
+			return Response.status(Response.Status.UNAUTHORIZED).build();
 		}
 		if (!loginValid(password, acc.hash)) {
-			return Response.status(Response.Status.UNAUTHORIZED).header("Access-Control-Allow-Origin", "*").build();
+			return Response.status(Response.Status.UNAUTHORIZED).build();
 		}
 		String token = createLoginToken(acc.id);
 		if (token == null) {
-			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
-					.build();
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
 		}
-		return Response.ok(new Gson().toJson(wrap("token", token))).header("Access-Control-Allow-Origin", "*").build();
+		return Response.ok(new Gson().toJson(wrap("token", token))).build();
 	}
 
 	private static JsonElement wrap(String key, Object value) {

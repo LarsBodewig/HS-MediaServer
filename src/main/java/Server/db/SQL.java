@@ -102,7 +102,8 @@ class SQL {
 		}
 
 		SelectCondition where(String column, String operator, SelectQuery subSelect) {
-			return new SelectCondition(st.append("WHERE ").append(column).append(" ").append(operator).append(" (").append(subSelect.query()).append(") "));
+			return new SelectCondition(st.append("WHERE ").append(column).append(" ").append(operator).append(" (")
+					.append(subSelect.query()).append(") "));
 		}
 
 		Join(StringBuilder st) {
@@ -113,7 +114,11 @@ class SQL {
 	static class SelectCondition extends SelectQuery {
 
 		Group groupBy(String group) {
-			return new Group(st.append(group).append(" "));
+			return new Group(st.append("GROUP BY ").append(group).append(" "));
+		}
+
+		Order orderBy(String order) {
+			return new Order(st.append("ORDER BY ").append(order).append(" "));
 		}
 
 		SelectCondition(StringBuilder st) {
@@ -124,11 +129,11 @@ class SQL {
 	static class Group extends SelectQuery {
 
 		Having having(String having) {
-			return new Having(st.append(having).append(" "));
+			return new Having(st.append("HAVING ").append(having).append(" "));
 		}
 
 		Order orderBy(String order) {
-			return new Order(st.append(order).append(" "));
+			return new Order(st.append("ORDER BY ").append(order).append(" "));
 		}
 
 		Group(StringBuilder st) {
@@ -139,7 +144,7 @@ class SQL {
 	static class Having extends SelectQuery {
 
 		Order orderBy(String order) {
-			return new Order(st.append(order).append(" "));
+			return new Order(st.append("ORDER BY ").append(order).append(" "));
 		}
 
 		Having(StringBuilder st) {

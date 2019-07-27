@@ -15,9 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -46,15 +46,13 @@ public class Posts {
 	private static final DateTimeFormatter FULL_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMM yy", Locale.US);
 
 	@GET
-	//@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response get(@PathParam(USER_PARAM) String user, @QueryParam(FROM_PARAM) String from,
 			@QueryParam(TO_PARAM) String to,
 			@QueryParam(REPLIES_PARAM) @DefaultValue(REPLIES_PARAM_DEFAULT) boolean replies,
-			// @FormParam("auth_token")
-			@QueryParam("auth_token") String token) throws IOException, ParseException {
+			@HeaderParam("auth_token") String token) throws IOException, ParseException {
 		if (!Account.checkLoginToken(token)) {
-			return Response.status(Response.Status.FORBIDDEN).header("Access-Control-Allow-Origin", "*").build();
+			return Response.status(Response.Status.FORBIDDEN).build();
 		}
 		List<Tweet> results = new ArrayList<>();
 		String url = Twitter.BASE_URL + "/" + user;
@@ -66,17 +64,15 @@ public class Posts {
 		}
 		try {
 			results = getTweets(results, url, to, replies);
-			return Response.ok(Twitter.toJson(results)).header("Access-Control-Allow-Origin", "*").build();
+			return Response.ok(Twitter.toJson(results)).build();
 		} catch (IOException io) {
 			if (io instanceof HttpStatusException && ((HttpStatusException) io).getStatusCode() == 429) {
 				Api.log("Catched Exception: Exceeded twitter rate limit - on cooldown.", "\t" + io);
 			}
 			if (results.isEmpty()) {
-				return Response.status(Response.Status.INTERNAL_SERVER_ERROR).header("Access-Control-Allow-Origin", "*")
-						.build();
+				return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
 			} else {
-				return Response.status(Response.Status.PARTIAL_CONTENT).entity(Twitter.toJson(results))
-						.header("Access-Control-Allow-Origin", "*").build();
+				return Response.status(Response.Status.PARTIAL_CONTENT).entity(Twitter.toJson(results)).build();
 			}
 		}
 	}

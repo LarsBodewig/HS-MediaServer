@@ -25,7 +25,6 @@ public class Update {
 		if (!Account.checkLoginToken(token)) {
 			return Response.status(Response.Status.FORBIDDEN).build();
 		}
-
 		AccountObject account = Database.getAccount("id", Database.getAccountId("login_token", token));
 		if (account == null) {
 			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();

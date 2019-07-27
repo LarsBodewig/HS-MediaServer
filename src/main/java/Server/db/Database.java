@@ -8,8 +8,11 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import Server.Server;
 import Server.Utils;
@@ -110,15 +113,30 @@ public class Database {
 				Utils.quoteArr(email, hash, verified)));
 	}
 
+	public static <V extends AccountObject.Node> Map<Integer, V> getNodes(int id, String table, String orderByColumn,
+			Class<V> nodeC) {
+		Map<?, ?> temp = executeQuery(
+				SQL.select("*").from(table).where("acc_id = " + id).orderBy(orderByColumn + " ASC"), (rs, listC) -> {
+					Map<Integer, V> map = new TreeMap<>();
+					Class<?>[] columns = getColumns(rs);
+					while (rs.next()) {
+						map.put(rs.getInt("id"), castToClass(rs, nodeC, columns));
+					}
+					return map;
+				}, Map.class);
+		return temp.entrySet().stream()
+				.collect(Collectors.toMap(e -> Integer.class.cast(e.getKey()), e -> nodeC.cast(e.getValue())));
+	}
+
 	public static Integer getAccountId(String tokenType, String token) {
 		return getAccountIds(tokenType, tokenType + " = " + Utils.quote(token))[0];
 	}
 
 	public static Integer[] getAccountIds(String tokenType, String condition) {
-		Set<?> temp = executeQuery(SQL.select("acc_id").from(tokenType).where(condition), (rs, intC) -> {
+		Set<?> temp = executeQuery(SQL.select("acc_id").from(tokenType).where(condition), (rs, setC) -> {
 			Set<Integer> result = new TreeSet<>();
 			while (rs.next()) {
-				result.add(rs.getInt(1));
+				result.add(rs.getInt("acc_id"));
 			}
 			return result;
 		}, Set.class);

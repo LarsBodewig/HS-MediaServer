@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import Server.api.twitter.TwitterItem;
+import Server.api.youtube.YoutubeItem;
 import Server.db.Database;
 
 public class AccountObject {
@@ -37,6 +38,14 @@ public class AccountObject {
 		});
 		Map<Integer, TwitterItem> twitter = Database.getNodes(id, "item_twitter", "folder_id", TwitterItem.class);
 		twitter.forEach((k, v) -> {
+			if (v.folderId == 0) {
+				root.add(v);
+			} else {
+				folders.get(v.folderId).add(v);
+			}
+		});
+		Map<Integer, YoutubeItem> youtube = Database.getNodes(id, "item_youtube", "folder_id", YoutubeItem.class);
+		youtube.forEach((k, v) -> {
 			if (v.folderId == 0) {
 				root.add(v);
 			} else {

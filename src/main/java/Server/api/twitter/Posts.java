@@ -78,8 +78,7 @@ public class Posts {
 	}
 
 	private List<Tweet> getTweets(List<Tweet> results, String from, String to, boolean replies) throws IOException {
-		Document doc = null;
-		doc = Twitter.getDocument(from);
+		Document doc = Twitter.getDocument(from);
 		Elements tweets = doc.getElementsByClass("tweet");
 		for (Element tweet : tweets) {
 			Tweet result = new Tweet();

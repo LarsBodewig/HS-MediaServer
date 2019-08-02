@@ -6,41 +6,34 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-
+import Server.Utils;
 import Server.db.Database;
 import Server.db.Hash;
 
-@Path("/account/login")
+@Path(Account.BASE_PATH + "/" + Account.LOGIN_PATH)
 public class Login {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response post(@HeaderParam("email") String email, @HeaderParam("password") String password) {
+	public Response post(@HeaderParam(Account.EMAIL_HEADER) String email,
+			@HeaderParam(Account.PASSWORD_HEADER) String password) {
 		if (!Database.hasConnection()) {
-			return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
+			return Response.status(Status.SERVICE_UNAVAILABLE).build();
 		}
 		AccountObject acc = Account.getAccount(email);
 		if (acc == null) {
-			return Response.status(Response.Status.UNAUTHORIZED).build();
+			return Response.status(Status.UNAUTHORIZED).build();
 		}
 		if (!loginValid(password, acc.hash)) {
-			return Response.status(Response.Status.UNAUTHORIZED).build();
+			return Response.status(Status.UNAUTHORIZED).build();
 		}
 		String token = createLoginToken(acc.id);
 		if (token == null) {
-			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 		}
-		return Response.ok(new Gson().toJson(wrap("token", token))).build();
-	}
-
-	private static JsonElement wrap(String key, Object value) {
-		JsonObject res = new JsonObject();
-		res.add(key, new Gson().toJsonTree(value));
-		return res;
+		return Response.ok(Account.toJson(Utils.wrap("token", token))).build();
 	}
 
 	private static String createLoginToken(int id) {
@@ -48,8 +41,10 @@ public class Login {
 		do {
 			token = Hash.randomToken();
 		} while (Account.checkLoginToken(token));
-		Database.insertToken("login_token", id, token,
-				"DATE_ADD(NOW(), INTERVAL " + Account.LOGIN_TOKEN_TIMEOUT_AMOUNT + " HOUR)");
+		if (Database.insertToken("login_token", id, token,
+				"DATE_ADD(NOW(), INTERVAL " + Account.LOGIN_TOKEN_TIMEOUT_AMOUNT + " HOUR)") == null) {
+			return null;
+		}
 		return token;
 	}
 

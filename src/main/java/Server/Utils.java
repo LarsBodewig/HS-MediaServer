@@ -1,10 +1,23 @@
 package Server;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import Server.api.Api;
 
 public abstract class Utils {
+
+	public static JsonElement wrap(String key, Object value) {
+		JsonObject res = new JsonObject();
+		res.add(key, Api.gson.toJsonTree(value));
+		return res;
+	}
 
 	public static String[] arr(String... elements) {
 		return elements;
@@ -12,6 +25,12 @@ public abstract class Utils {
 
 	public static String[] arr(Object... elements) {
 		return Arrays.stream(elements).map(String::valueOf).toArray(String[]::new);
+	}
+
+	public static <T> T[] concat(T[] first, T[] second) {
+		T[] result = Arrays.copyOf(first, first.length + second.length);
+		System.arraycopy(second, 0, result, first.length, second.length);
+		return result;
 	}
 
 	public static String quote(String element) {
@@ -51,6 +70,19 @@ public abstract class Utils {
 			}
 		}
 		return sb;
+	}
+
+	public static <T> boolean containsAllKeys(Map<T, ?> map, Collection<T> col) {
+		for (T element : col) {
+			if (!map.containsKey(element)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static <T> boolean containsAllKeys(Map<T, ?> map, T[] elements) {
+		return containsAllKeys(map, List.of(elements));
 	}
 
 	public static final class Unary {

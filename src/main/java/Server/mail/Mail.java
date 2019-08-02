@@ -1,7 +1,5 @@
 package Server.mail;
 
-import java.io.PrintStream;
-
 import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.HtmlEmail;
 
@@ -14,13 +12,6 @@ public abstract class Mail {
 	private static final String USER = "java@server.pp";
 	private static final String PASSWORD = "java";
 	private static final String FROM = "java@server.pp";
-
-	public static void log(String... lines) {
-		PrintStream logStream = Server.getLogStream();
-		for (String line : lines) {
-			logStream.println(line);
-		}
-	}
 
 	public static void log(Exception exception) {
 		exception.printStackTrace(Server.getLogStream());

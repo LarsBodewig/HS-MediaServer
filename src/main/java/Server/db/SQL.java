@@ -26,6 +26,10 @@ class SQL {
 			return new UpdateCondition(st.append("SET ").append(column).append(" = ").append(value).append(" "));
 		}
 
+		UpdateCondition set(String multiple) {
+			return new UpdateCondition(st.append("SET ").append(multiple).append(" "));
+		}
+
 		Update(StringBuilder st) {
 			this.st = st;
 		}

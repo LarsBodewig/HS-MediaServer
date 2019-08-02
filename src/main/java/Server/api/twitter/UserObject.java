@@ -1,6 +1,8 @@
 package Server.api.twitter;
 
-class UserInfo {
+import Server.api.ItemObject;
+
+class UserObject implements ItemObject {
 	public String avatar;
 	public String fullname;
 	public String username;

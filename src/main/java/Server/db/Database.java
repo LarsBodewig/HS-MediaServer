@@ -8,7 +8,9 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -20,6 +22,7 @@ import Server.Utils.BiFunctionThrows;
 import Server.Utils.Unary;
 import Server.Utils.UnexpectedExceptionException;
 import Server.api.account.AccountObject;
+import Server.api.account.MenuItem;
 import Server.db.SQL.SelectQuery;
 import Server.db.SQL.UpdateQuery;
 
@@ -51,7 +54,8 @@ public class Database {
 		exception.printStackTrace(Server.getLogStream());
 	}
 
-	public static <T> T castToClass(ResultSet rs, Class<T> c, Class<?>[] columns) {
+	public static <T> T castToClass(ResultSet rs, Class<T> c) {
+		Class<?>[] columns = getColumns(rs);
 		Object[] parameters = getParameters(rs, columns);
 		try {
 			Constructor<T> constr = c.getConstructor(columns);
@@ -99,9 +103,23 @@ public class Database {
 		return executeUpdate(SQL.deleteFrom(tokenType).where(condition));
 	}
 
-	public static Unary updateAccount(String condColumn, Object condValue, String setColumn, Object setValue) {
-		return executeUpdate(SQL.update("account").set(setColumn, Utils.quote(setValue))
+	public static Unary updateTable(String table, String condColumn, Object condValue, String setColumn,
+			Object setValue) {
+		return executeUpdate(SQL.update(table).set(setColumn, Utils.quote(setValue))
 				.where(condColumn + " = " + Utils.quote(condValue)));
+	}
+
+	public static Unary updateTable(String table, String condColumn, Object condValue, Map<String, Object> map) {
+		StringBuilder st = new StringBuilder();
+		Iterator<Entry<String, Object>> itr = map.entrySet().iterator();
+		while (itr.hasNext()) {
+			Entry<String, Object> entry = itr.next();
+			st.append(entry.getKey() + " = " + Utils.quote(entry.getValue()));
+			if (itr.hasNext()) {
+				st.append(", ");
+			}
+		}
+		return executeUpdate(SQL.update(table).set(st.toString()).where(condColumn + " = " + Utils.quote(condValue)));
 	}
 
 	public static Unary deleteAccount(String condition) {
@@ -113,19 +131,18 @@ public class Database {
 				Utils.quoteArr(email, hash, verified)));
 	}
 
-	public static <V extends AccountObject.Node> Map<Integer, V> getNodes(int id, String table, String orderByColumn,
-			Class<V> nodeC) {
+	public static <V extends MenuItem> Map<Integer, V> getMenuItems(int id, String table, String orderByColumn,
+			Class<V> itemClass) {
 		Map<?, ?> temp = executeQuery(
 				SQL.select("*").from(table).where("acc_id = " + id).orderBy(orderByColumn + " ASC"), (rs, listC) -> {
 					Map<Integer, V> map = new TreeMap<>();
-					Class<?>[] columns = getColumns(rs);
 					while (rs.next()) {
-						map.put(rs.getInt("id"), castToClass(rs, nodeC, columns));
+						map.put(rs.getInt("id"), castToClass(rs, itemClass));
 					}
 					return map;
 				}, Map.class);
 		return temp.entrySet().stream()
-				.collect(Collectors.toMap(e -> Integer.class.cast(e.getKey()), e -> nodeC.cast(e.getValue())));
+				.collect(Collectors.toMap(e -> Integer.class.cast(e.getKey()), e -> itemClass.cast(e.getValue())));
 	}
 
 	public static Integer getAccountId(String tokenType, String token) {
@@ -144,10 +161,24 @@ public class Database {
 	}
 
 	public static AccountObject getAccount(String column, Object value) {
-		return executeQuery(SQL.select("*").from("account").where(column + " = " + Utils.quote(value)), (rs, accC) -> {
-			return (rs.next()) ? castToClass(rs, accC, getColumns(rs)) : null;
+		return executeQuery(SQL.select("*").from("account").where(column + " = " + Utils.quote(value)), (rs, aoC) -> {
+			return (rs.next()) ? castToClass(rs, aoC) : null;
 		}, AccountObject.class);
 	}
+
+	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+	public static Unary insertItem(String table, String title, String url, String source,
+			Map<String, Object> customFields) {
+		return executeUpdate(SQL.insertInto(table)
+				.values(Utils.concat(Utils.arr("title", "url", "source"),
+						customFields.keySet().toArray(new String[customFields.size()])),
+						Utils.concat(Utils.arr(title, url, source), Utils.quoteArr(customFields.values().toArray()))));
+	}
+
+	public static Unary deleteItem(String table, String conditionColumn, Object columnValue) {
+		return executeUpdate(SQL.deleteFrom(table).where(conditionColumn + " = " + Utils.quote(columnValue)));
+	}
+	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 	public static Boolean tokenExists(String tokenType, String token) {
 		return executeQuery(SQL.select("1").from(tokenType).where(tokenType + " = " + Utils.quote(token)),

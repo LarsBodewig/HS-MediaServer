@@ -24,6 +24,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
@@ -50,11 +51,11 @@ public class Posts {
 	public Response get(@PathParam(USER_PARAM) String user, @QueryParam(FROM_PARAM) String from,
 			@QueryParam(TO_PARAM) String to,
 			@QueryParam(REPLIES_PARAM) @DefaultValue(REPLIES_PARAM_DEFAULT) boolean replies,
-			@HeaderParam("auth_token") String token) throws IOException, ParseException {
+			@HeaderParam(Api.AUTH_TOKEN_HEADER) String token) throws IOException, ParseException {
 		if (!Account.checkLoginToken(token)) {
-			return Response.status(Response.Status.FORBIDDEN).build();
+			return Response.status(Status.FORBIDDEN).build();
 		}
-		List<Tweet> results = new ArrayList<>();
+		List<TweetObject> results = new ArrayList<>();
 		String url = Twitter.BASE_URL + "/" + user;
 		if (from != null && from.matches("^[-,0-9]+$")) {
 			url += "?max_id=" + from;
@@ -70,19 +71,37 @@ public class Posts {
 				Api.log("Catched Exception: Exceeded twitter rate limit - on cooldown.", "\t" + io);
 			}
 			if (results.isEmpty()) {
-				return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+				return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 			} else {
-				return Response.status(Response.Status.PARTIAL_CONTENT).entity(Twitter.toJson(results)).build();
+				return Response.status(Status.PARTIAL_CONTENT).entity(Twitter.toJson(results)).build();
 			}
 		}
 	}
 
-	private List<Tweet> getTweets(List<Tweet> results, String from, String to, boolean replies) throws IOException {
+	public static List<TweetObject> getUnseenTweets(String source, String to) throws IOException {
+		String[] temp = source.split("\\/");
+		String user = temp[2];
+		temp = temp[3].split("\\?|&");
+		boolean replies = true;
+		for (String param : temp) {
+			String[] keyValue = param.split("=");
+			if (keyValue[0].equals(TO_PARAM)) {
+				replies = Boolean.valueOf(keyValue[1]);
+			}
+		}
+		return getTweets(new ArrayList<TweetObject>(), Twitter.BASE_URL + "/" + user, to, replies);
+	}
+
+	private static List<TweetObject> getTweets(List<TweetObject> results, String from, String to, boolean replies)
+			throws IOException {
 		Document doc = Twitter.getDocument(from);
 		Elements tweets = doc.getElementsByClass("tweet");
 		for (Element tweet : tweets) {
-			Tweet result = new Tweet();
+			TweetObject result = new TweetObject();
 			result.id = tweet.getElementsByClass("tweet-text").attr("data-id");
+			if (result.id.equals(to)) {
+				return results;
+			}
 			result.author = tweet.getElementsByClass("username").first().ownText();
 			result.source = Twitter.BASE_URL + tweet.attr("href");
 			Element post = tweet.getElementsByClass("tweet-text").first();
@@ -103,9 +122,6 @@ public class Posts {
 			if (result.reply != null && replies || result.reply == null) {
 				results.add(result);
 			}
-			if (result.id.equals(to)) {
-				return results;
-			}
 		}
 		Element moreResults = doc.getElementsByClass("w-button-more").first();
 		if (moreResults != null && to != null) {
@@ -115,7 +131,7 @@ public class Posts {
 		}
 	}
 
-	private long parseTime(String timestamp) {
+	private static long parseTime(String timestamp) {
 		LocalDateTime date = null;
 		if (timestamp.matches("^[1-5]?[0-9](m|h|s)$")) {
 			TemporalUnit unit = null;

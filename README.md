@@ -1,4 +1,6 @@
-# Server
+# HS-MediaServer
+
+Backend implementation for coding project in University
 
 ## Twitter
 <table>
